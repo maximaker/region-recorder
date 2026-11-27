@@ -15,7 +15,7 @@
       sendMessage: (m) => { window.__sent.push(m); return Promise.resolve(); },
       onMessage: { addListener() {}, removeListener() {} },
     },
-    storage: { sync: { get: (d) => Promise.resolve(d) } },
+    storage: { sync: { get: (d) => Promise.resolve(d), set: (v) => { window.__saved = v; return Promise.resolve(); } } },
   };
 </script>
 <script src="../content.js"></script>

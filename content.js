@@ -73,6 +73,12 @@
       .rec:hover { background: var(--accent-hover); }
       .dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; }
       .chev { width: 10px; height: 10px; opacity: .6; }
+      .toggle { padding: 0 10px; }
+      .toggle svg { width: 16px; height: 16px; }
+      .toggle .slash { display: none; }
+      .toggle[aria-pressed=false] { color: var(--muted); }
+      .toggle[aria-pressed=false] .slash { display: inline; }
+      .toggle[aria-pressed=false] .arrow { opacity: .55; }
 
       .dd { position: relative; }
       .menu { position: absolute; left: 0; min-width: 168px; padding: 4px; display: none; flex-direction: column; gap: 1px; }
@@ -131,8 +137,12 @@
     cleanup.push(() => target.removeEventListener(type, fn, opts));
   };
 
+  // Whether the cursor ring and click ripples are drawn into the video.
+  // Same setting as the checkbox in Options; the toolbar toggle saves to it.
   let showClicks = true;
-  chrome.storage?.sync.get({ showClicks: true }).then((s) => { showClicks = s.showClicks; }).catch(() => {});
+  chrome.storage?.sync.get({ showClicks: true })
+    .then((s) => { showClicks = s.showClicks; syncCursorUI(); })
+    .catch(() => {});
 
   // Small outline that previews each shape in the menu.
   function glyph(shape) {
@@ -195,13 +205,32 @@
   recBtn.type = 'button';
   recBtn.title = 'Enter';
   recBtn.append(el('dot', 'span'), document.createTextNode('Record'));
-  bar.append(dd, el('sep'), cancelBtn, recBtn);
+  const cursorBtn = el('toggle', 'button');
+  cursorBtn.type = 'button';
+  cursorBtn.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">
+      <path class="arrow" d="M4 2.5v10l2.6-2.4 1.8 3.9 1.7-.8-1.8-3.8h3.5z" fill="currentColor"/>
+      <path class="slash" d="M2.5 2.5l11 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>`;
+  cursorBtn.addEventListener('click', () => {
+    showClicks = !showClicks;
+    syncCursorUI();
+    chrome.storage?.sync.set({ showClicks }).catch(() => {});
+  });
+
+  bar.append(dd, cursorBtn, el('sep'), cancelBtn, recBtn);
   cancelBtn.addEventListener('click', cancel);
   recBtn.addEventListener('click', () => rect && record(rect));
   bar.addEventListener('pointerdown', (e) => e.stopPropagation());
 
   ui.append(layer, box, bar, hint);
   root.append(ui);
+
+  function syncCursorUI() {
+    cursorBtn.setAttribute('aria-pressed', String(showClicks));
+    const label = showClicks ? 'Cursor and clicks: shown in the video' : 'Cursor and clicks: hidden';
+    cursorBtn.title = label;
+    cursorBtn.setAttribute('aria-label', label);
+  }
 
   function openMenu() {
     const below = bar.getBoundingClientRect().bottom + 250 < innerHeight;
@@ -476,5 +505,6 @@
 
   window.__regionRecorder = { destroy };
   syncShapeUI();
+  syncCursorUI();
   render();
 })();
