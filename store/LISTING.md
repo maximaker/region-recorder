@@ -68,7 +68,7 @@ Records a user-selected area of the current tab as a video, optionally with the 
 Tick the three certifications: no selling, no unrelated use, no creditworthiness use.
 
 **Privacy policy URL:** https://github.com/maximaker/region-recorder/blob/main/PRIVACY.md
-(Only works once the repository is public.)
+(The repository is public, so this link works.)
 
 ## Distribution tab
 
