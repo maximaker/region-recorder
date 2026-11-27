@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Region Recorder",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Pick a part of the page, record it, and have the video saved straight to a folder.",
   "minimum_chrome_version": "116",
   "permissions": ["tabCapture", "offscreen", "downloads", "downloads.open", "notifications", "storage", "activeTab", "scripting"],

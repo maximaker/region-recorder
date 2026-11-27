@@ -243,8 +243,10 @@ async function downloadFinished(id, state) {
 
 // ---------- microphone permission ----------
 // The offscreen document can't show Chrome's permission prompt, so the first
-// time the mic is turned on, a small extension window asks for it. The
-// permission then belongs to the extension and the recorder can use it.
+// time the mic is turned on, an extension page asks for it. The permission
+// then belongs to the extension and the recorder can use it.
+// It opens as a normal tab next to the user's (not a popup window): popups
+// have no address bar, where Chrome shows its prompt, and can open unseen.
 
 async function micPermission(prompt, tab) {
   let state = 'prompt';
@@ -255,9 +257,11 @@ async function micPermission(prompt, tab) {
   if (state === 'granted' || !prompt || !tab) return { state };
 
   const { micAsk } = await chrome.storage.session.get('micAsk');
-  if (micAsk) await chrome.windows.remove(micAsk.windowId).catch(() => {});
-  const win = await chrome.windows.create({ url: 'mic.html', type: 'popup', width: 440, height: 380, focused: true });
-  await chrome.storage.session.set({ micAsk: { windowId: win.id, tabId: tab.id, tabWindowId: tab.windowId } });
+  if (micAsk) await chrome.tabs.remove(micAsk.askTabId).catch(() => {});
+  const ask = await chrome.tabs.create({
+    url: 'mic.html', windowId: tab.windowId, index: tab.index + 1, openerTabId: tab.id, active: true,
+  });
+  await chrome.storage.session.set({ micAsk: { askTabId: ask.id, tabId: tab.id, tabWindowId: tab.windowId } });
   return { state: 'asking' };
 }
 
@@ -266,16 +270,17 @@ async function micAnswered(state) {
   if (!micAsk) return;
   await chrome.storage.session.remove('micAsk');
   chrome.tabs.sendMessage(micAsk.tabId, { type: 'rr-mic', state }).catch(() => {});
-  if (state === 'granted') {
-    setTimeout(() => chrome.windows.remove(micAsk.windowId).catch(() => {}), 900);
+  if (state === 'granted' || state === 'dismissed') {
+    await chrome.tabs.update(micAsk.tabId, { active: true }).catch(() => {});
     await chrome.windows.update(micAsk.tabWindowId, { focused: true }).catch(() => {});
+    setTimeout(() => chrome.tabs.remove(micAsk.askTabId).catch(() => {}), state === 'granted' ? 900 : 0);
   }
 }
 
-// Closing the window without answering counts as "not now".
-chrome.windows.onRemoved.addListener(async (windowId) => {
+// Closing the permission tab without answering counts as "not now".
+chrome.tabs.onRemoved.addListener(async (tabId) => {
   const { micAsk } = await chrome.storage.session.get('micAsk');
-  if (micAsk?.windowId === windowId) await micAnswered('dismissed');
+  if (micAsk?.askTabId === tabId) await micAnswered('dismissed');
 });
 
 // ---------- "saved" notification ----------
