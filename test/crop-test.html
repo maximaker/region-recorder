@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Crop pipeline test</title>
+<body style="font:14px system-ui;background:#fff">
+<canvas id="c" width="1600" height="1000"></canvas>
+<pre id="out">running…</pre>
+<script>
+// Feeds a moving canvas through the same crop + record pipeline as offscreen.js
+// and reports the resulting video size.
+const even = (n) => Math.max(2, Math.floor(n / 2) * 2);
+const viewport = { w: 800, h: 500, dpr: 2 };
+const rect = { x: 101, y: 51, w: 301, h: 201 };
+function cropFor(frame) {
+  const vr = frame.visibleRect;
+  const s = Math.min(vr.width / viewport.w, vr.height / viewport.h);
+  const ox = vr.x + (vr.width - viewport.w * s) / 2, oy = vr.y + (vr.height - viewport.h * s) / 2;
+  const right = vr.x + vr.width, bottom = vr.y + vr.height;
+  const x = Math.min(even(ox + rect.x * s), even(right - 2));
+  const y = Math.min(even(oy + rect.y * s), even(bottom - 2));
+  return { x, y, width: Math.min(even(rect.w * s), even(right - x)), height: Math.min(even(rect.h * s), even(bottom - y)) };
+}
+(async () => {
+  const out = document.getElementById('out');
+  try {
+    const c = document.getElementById('c'), g = c.getContext('2d');
+    let t = 0; const id = setInterval(() => { g.fillStyle = '#eee'; g.fillRect(0,0,1600,1000); g.fillStyle = '#d93025'; g.fillRect(200 + (t++ % 50) * 4, 100, 600, 400); }, 33);
+    const track = c.captureStream(30).getVideoTracks()[0];
+    const processor = new MediaStreamTrackProcessor({ track });
+    const generator = new MediaStreamTrackGenerator({ kind: 'video' });
+    let outSize = null, frames = 0;
+    processor.readable.pipeThrough(new TransformStream({ transform(frame, ctl) {
+      let o; try { const vr = cropFor(frame); outSize ??= { w: vr.width, h: vr.height };
+        o = new VideoFrame(frame, { visibleRect: vr, displayWidth: outSize.w, displayHeight: outSize.h }); frames++; }
+      finally { frame.close(); } if (o) ctl.enqueue(o);
+    }})).pipeTo(generator.writable).catch(() => {});
+    const mime = ['video/mp4;codecs=avc1,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+    const rec = new MediaRecorder(new MediaStream([generator]), { mimeType: mime, videoBitsPerSecond: 8e6 });
+    const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+    rec.start(1000);
+    await new Promise(r => setTimeout(r, 2500));
+    await new Promise(r => { rec.onstop = r; rec.stop(); });
+    clearInterval(id); track.stop();
+    const blob = new Blob(chunks, { type: rec.mimeType.split(';')[0] });
+    const v = document.createElement('video'); v.muted = true; v.src = URL.createObjectURL(blob);
+    await new Promise((r, j) => { v.onloadedmetadata = r; v.onerror = () => j(new Error('video failed to load')); });
+    document.body.append(v);
+    out.textContent = JSON.stringify({ mime: rec.mimeType, bytes: blob.size, frames, crop: outSize, video: [v.videoWidth, v.videoHeight] });
+    window.__result = out.textContent;
+  } catch (e) { out.textContent = 'ERROR ' + e; window.__result = out.textContent; }
+})();
+</script>
