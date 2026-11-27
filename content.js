@@ -104,6 +104,16 @@
       .stop .label { padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,.1); }
       .stop:hover { background: var(--glass); }
       .stop:hover .label { background: var(--accent); }
+      .meters { display: inline-flex; align-items: center; gap: 10px; padding-left: 10px; border-left: 1px solid var(--line); height: 20px; }
+      .meter { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+      .meter svg { width: 13px; height: 13px; }
+      .meter.live { color: var(--text); }
+      .bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 13px; }
+      .bars i { width: 3px; border-radius: 1.5px; background: rgba(255,255,255,.18); transition: background .08s; }
+      .bars i:nth-child(1) { height: 4px; } .bars i:nth-child(2) { height: 7px; }
+      .bars i:nth-child(3) { height: 10px; } .bars i:nth-child(4) { height: 13px; }
+      .bars i.on { background: #4ade80; }
+      .bars i.on.hot { background: #fbbf24; }
       @keyframes pulse { 50% { opacity: .35; } }
 
       .ring { position: fixed; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%; pointer-events: none; display: none;
@@ -515,7 +525,7 @@
 
     // Stop pill below the area, or above; left out when neither fits
     // (full view) so it doesn't end up in the video — stop from the toolbar icon.
-    const BTN = 36, GAP = 10, W = 132;
+    const BTN = 36, GAP = 10;
     let top = null;
     if (r.y + r.h + GAP + BTN + 4 <= innerHeight) top = r.y + r.h + GAP;
     else if (r.y - GAP - BTN - 4 >= 0) top = r.y - GAP - BTN;
@@ -525,11 +535,15 @@
       stopBtn.title = 'Stop and save (Alt+Shift+R)';
       const time = el('time', 'span', '0:00');
       const label = el('label', 'span', 'Stop');
-      stopBtn.append(el('sq', 'span'), time, label);
+      stopBtn.append(el('sq', 'span'), time);
+      const meters = buildMeters();
+      if (meters) stopBtn.append(meters);
+      stopBtn.append(label);
       stopBtn.style.top = `${top}px`;
-      stopBtn.style.left = `${clamp(r.x + r.w - W, 4, innerWidth - W - 4)}px`;
       on(stopBtn, 'click', () => { stopBtn.disabled = true; label.textContent = 'Saving…'; send({ type: 'stop-request' }); });
       root.append(stopBtn);
+      const W = stopBtn.offsetWidth || 132;
+      stopBtn.style.left = `${clamp(r.x + r.w - W, 4, innerWidth - W - 4)}px`;
       const t0 = Date.now();
       const id = setInterval(() => { if (!stopBtn.disabled) time.textContent = fmt(Date.now() - t0); }, 1000);
       cleanup.push(() => clearInterval(id));
@@ -542,6 +556,43 @@
     requestAnimationFrame(() => requestAnimationFrame(() => {
       send({ type: 'region-selected', rect: r, viewport: viewport(), tabAudio, mic: mic && !micPending });
     }));
+  }
+
+  // Small level bars per recorded source, so you can see sound is coming in.
+  // Bars stay grey when a source is silent; green when it's picked up.
+  const levelUI = {};
+  function buildMeters() {
+    const sources = [];
+    if (tabAudio) sources.push(['tab', 'Tab sound', '<path d="M2.5 6h2.4L8.5 3v10L4.9 10H2.5z" fill="currentColor"/><path d="M10.8 5.6a3.4 3.4 0 0 1 0 4.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>']);
+    if (mic && !micPending) sources.push(['mic', 'Microphone', '<path d="M6 3a2 2 0 0 1 4 0v4a2 2 0 0 1-4 0z" fill="currentColor"/><path d="M4 7a4 4 0 0 0 8 0M8 11v2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>']);
+    if (!sources.length) return null;
+    const wrap = el('meters', 'span');
+    for (const [key, name, path] of sources) {
+      const m = el('meter', 'span');
+      m.title = `${name} level`;
+      m.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${path}</svg>`;
+      const bars = el('bars', 'span');
+      const cells = [0, 1, 2, 3].map(() => bars.appendChild(document.createElement('i')));
+      m.append(bars);
+      wrap.append(m);
+      levelUI[key] = { m, cells, shown: 0 };
+    }
+    return wrap;
+  }
+
+  const THRESH = [0.12, 0.35, 0.58, 0.8];
+  function showLevels(levels) {
+    for (const key of ['tab', 'mic']) {
+      const ui = levelUI[key];
+      const v = levels[key];
+      if (!ui || v == null) continue;
+      ui.shown = Math.max(v, ui.shown * 0.8); // fast attack, gentle fall
+      ui.cells.forEach((c, i) => {
+        c.classList.toggle('on', ui.shown >= THRESH[i]);
+        c.classList.toggle('hot', ui.shown >= 0.92);
+      });
+      ui.m.classList.toggle('live', ui.shown >= THRESH[0]);
+    }
   }
 
   // Drawn inside the area on purpose, so it is part of the video.
@@ -578,6 +629,7 @@
   function onMessage(msg) {
     if (msg.type === 'rr-cleanup') destroy();
     if (msg.type === 'rr-mic' && micPending) micAnswer(msg.state);
+    if (msg.type === 'rr-levels') showLevels(msg);
   }
   chrome.runtime.onMessage.addListener(onMessage);
 

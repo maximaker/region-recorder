@@ -186,6 +186,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           await startRecording(msg.rect, msg.viewport, msg.tabAudio !== false, !!msg.mic);
         }
         break;
+      case 'levels': // offscreen can't reach tabs; relay to the page's Stop pill
+        if (st.status === 'recording') {
+          chrome.tabs.sendMessage(st.tabId, { type: 'rr-levels', tab: msg.tab, mic: msg.mic }).catch(() => {});
+        }
+        break;
       case 'mic-answer':
         await micAnswered(msg.state);
         break;

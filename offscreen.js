@@ -12,12 +12,15 @@ let viewport = null;
 let rect = null;
 let outSize = null;
 let ticker = null;
+let meterTimer = null;
 
 const even = (n) => Math.max(2, Math.floor(n / 2) * 2);
 
 function cleanupMedia() {
   clearInterval(ticker);
   ticker = null;
+  clearInterval(meterTimer);
+  meterTimer = null;
   stream?.getTracks().forEach((t) => t.stop());
   stream = null;
   micStream?.getTracks().forEach((t) => t.stop());
@@ -99,6 +102,7 @@ async function buildAudio(tabAudio, mic) {
     }
   }
   const [micTrack] = micStream?.getAudioTracks() || [];
+  startMeters(useTab ? tabTrack : null, micTrack || null);
   if (useTab && micTrack) {
     audioCtx ??= new AudioContext();
     const mix = audioCtx.createMediaStreamDestination();
@@ -109,6 +113,35 @@ async function buildAudio(tabAudio, mic) {
   if (useTab) return [tabTrack];
   if (micTrack) return [micTrack];
   return [];
+}
+
+// Live level of each recorded source (0–1, roughly -60 dB to -6 dB), sent
+// ~8×/s so the Stop pill can show that sound is coming in.
+function startMeters(tabTrack, micTrack) {
+  if (!tabTrack && !micTrack) return;
+  audioCtx ??= new AudioContext();
+  audioCtx.resume().catch(() => {});
+  const analyser = (track) => {
+    if (!track) return null;
+    const a = audioCtx.createAnalyser();
+    a.fftSize = 1024;
+    audioCtx.createMediaStreamSource(new MediaStream([track])).connect(a);
+    return a;
+  };
+  const tabA = analyser(tabTrack);
+  const micA = analyser(micTrack);
+  const buf = new Float32Array(1024);
+  const level = (a) => {
+    if (!a) return null;
+    a.getFloatTimeDomainData(buf);
+    let sum = 0;
+    for (const v of buf) sum += v * v;
+    const db = 20 * Math.log10(Math.sqrt(sum / buf.length) || 1e-8);
+    return Math.max(0, Math.min(1, (db + 60) / 54));
+  };
+  meterTimer = setInterval(() => {
+    chrome.runtime.sendMessage({ type: 'levels', tab: level(tabA), mic: level(micA) }).catch(() => {});
+  }, 120);
 }
 
 async function micStatus() {
