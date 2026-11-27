@@ -9,7 +9,7 @@ A Chrome extension that records a part of the page you pick and saves the video 
 3. Fine-tune it: drag inside to move, drag the handles to resize, or nudge with the arrow keys (Shift for 10 px). The shape menu locks the proportions (**16:9, 4:3, 1:1, 9:16**) or switches to **Full view**, the whole visible page. Drag outside the area to draw a new one.
 4. Press **Record** (or Enter). A red frame and a **Stop** button sit just outside the area, so they don't end up in the video. The icon badge shows the time. Next to the timer, small level bars for each sound source you picked (tab sound, mic) turn green when sound is coming in and stay grey when it's silent.
 5. A ring follows your cursor inside the area and each click leaves a ripple, so viewers can see what you did. Chrome's tab recording leaves out the real pointer. Turn it on or off with the cursor button in the toolbar before you press Record. Your choice is remembered, and it's the same setting as the checkbox in Options.
-   The next two buttons pick the sound: **tab sound** (what the page plays) and **microphone** (your voice). Use either, both, or neither. Both are mixed into one track. The first time you turn the mic on, a tab opens next to yours: click **Allow microphone**, choose Allow in Chrome's box, and you're taken back to your tab.
+   The next two buttons pick the sound: **tab sound** (what the page plays) and **microphone** (your voice). Use either, both, or neither. Both are mixed into one track. The first time you turn the mic on, Chrome's permission box appears right on the page ("Region Recorder wants to use your microphone"). If that can't work on a site, or the recorder still can't use the mic afterwards, a tab opens next to yours instead: click **Allow microphone**, choose Allow, and you're taken back. Hover the mic button to see which route was used.
 6. Stop with the button, the icon, or **Alt+Shift+R**. The video saves straight to `Downloads/Region Recordings/` with no dialog, named after the page and the time. A notification confirms it, with **Open** and **Show in folder** buttons.
 
 Closing the tab mid-recording saves what you have so far.
@@ -33,7 +33,7 @@ Right-click the icon → **Options**:
 
 - `background.js` handles the icon, gets a tab-capture stream id, and saves the finished file with `chrome.downloads`.
 - `content.js` draws the selection and adjust overlay, then the frame, Stop button, cursor ring and click ripples.
-- `mic.html` asks for microphone permission once (the recorder runs hidden and can't show Chrome's prompt itself).
+- `mic-frame.html` is an invisible frame that shows Chrome's mic prompt on the page; `mic.html` is the fallback tab. Either asks for microphone permission once (the recorder runs hidden and can't show Chrome's prompt itself).
 - `offscreen.js` holds the tab stream, mixes in the mic, crops each frame to the area with WebCodecs (`VideoFrame` `visibleRect`), and records with `MediaRecorder` at 8 Mbps.
 - `test/crop-test.html` checks the crop and record pipeline, `test/audio-mix-test.html` checks that two sound sources both end up in the file, and `test/overlay-test.html` runs the overlay with stubbed extension APIs. Open either one from disk in Chrome.
 

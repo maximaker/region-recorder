@@ -274,10 +274,55 @@
     // Turning it on: ask Chrome for permission if it hasn't been given yet.
     micPending = true;
     syncSoundUI();
+    const status = () => chrome.runtime.sendMessage({ type: 'mic-permission', prompt: false }).catch(() => null);
+    if ((await status())?.state === 'granted') return micAnswer('granted');
+
+    // 1) Chrome's permission box right on the page, via an extension frame.
+    const inPage = await askInPage();
+    if (inPage.state === 'granted' && (await status())?.state === 'granted') {
+      micVia = 'page';
+      return micAnswer('granted');
+    }
+    if (inPage.state === 'error' && /dismiss/i.test(inPage.message)) return micAnswer('dismissed');
+
+    // 2) Fallback: the permission tab (site blocks mic frames, the answer
+    // didn't carry over to the recorder, or the mic is blocked).
+    micVia = 'tab';
     const r = await chrome.runtime.sendMessage({ type: 'mic-permission', prompt: true }).catch(() => null);
     if (r?.state === 'asking') return; // answer arrives as an 'rr-mic' message
     micAnswer(r?.state === 'granted' ? 'granted' : 'denied');
   });
+
+  // Loads mic-frame.html invisibly; Chrome then shows "Region Recorder wants
+  // to use your microphone" on this page. Resolves with the frame's answer.
+  function askInPage() {
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2);
+      const frame = document.createElement('iframe');
+      frame.allow = 'microphone';
+      frame.src = chrome.runtime.getURL(`mic-frame.html?id=${id}`);
+      frame.setAttribute('aria-hidden', 'true');
+      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;opacity:0;border:0;pointer-events:none;';
+      let done = false;
+      const finish = (result) => {
+        if (done) return;
+        done = true;
+        removeEventListener('message', onMsg);
+        clearTimeout(timer);
+        frame.remove();
+        resolve(result);
+      };
+      const onMsg = (e) => {
+        if (e.source === frame.contentWindow && e.data?.rrMicFrame === id) finish(e.data);
+      };
+      addEventListener('message', onMsg);
+      // No answer (frame blocked by the site, or prompt left open) → fall back.
+      const timer = setTimeout(() => finish({ state: 'error', message: 'timeout' }), 45000);
+      frame.addEventListener('error', () => finish({ state: 'error', message: 'frame failed' }));
+      root.append(frame);
+    });
+  }
+  let micVia = '';
 
   function micAnswer(state) {
     micPending = false;
@@ -312,7 +357,7 @@
     micBtn.classList.toggle('pending', micPending);
     micBtn.setAttribute('aria-pressed', String(mic));
     const m = micPending ? 'Microphone: waiting for your permission'
-      : mic ? 'Microphone: recording your voice'
+      : mic ? `Microphone: recording your voice${micVia === 'page' ? ' (allowed on the page)' : micVia === 'tab' ? ' (allowed in the tab)' : ''}`
       : micNote === 'blocked' ? 'Microphone: blocked by Chrome. Click to try again'
       : 'Microphone: off';
     micBtn.title = m;
