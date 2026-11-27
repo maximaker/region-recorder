@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fieldnote · Overview</title>
+<!-- Made-up product page used only as the backdrop for store screenshots. -->
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 14px/1.45 "Segoe UI", system-ui, sans-serif; color: #1f2430; background: #f6f7f9; display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  aside { background: #fff; border-right: 1px solid #e7e9ee; padding: 22px 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; margin-bottom: 28px; }
+  .brand i { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, #5b8def, #7c5cff); }
+  nav a { display: block; padding: 8px 10px; border-radius: 8px; color: #5b6170; text-decoration: none; margin-bottom: 2px; }
+  nav a.on { background: #eef2fd; color: #2f5bd3; font-weight: 600; }
+  main { padding: 26px 30px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  h1 { font-size: 22px; font-weight: 650; }
+  .pill { padding: 7px 12px; border: 1px solid #e1e4ea; border-radius: 999px; background: #fff; color: #5b6170; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .card { background: #fff; border: 1px solid #e7e9ee; border-radius: 14px; padding: 16px; }
+  .card small { color: #5f6573; }
+  .card b { display: block; font-size: 24px; margin: 4px 0 2px; }
+  .up { color: #15803d; font-size: 12px; font-weight: 600; }
+  .row { display: grid; grid-template-columns: 1.7fr 1fr; gap: 14px; }
+  .chart { height: 250px; display: flex; align-items: flex-end; gap: 10px; padding-top: 18px; }
+  .chart span { flex: 1; border-radius: 6px 6px 2px 2px; background: linear-gradient(#7c9ff2, #5b8def); }
+  .chart span:nth-child(3n) { background: linear-gradient(#b4a4ff, #7c5cff); }
+  .list div { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f1f4; }
+  .list div:last-child { border: 0; }
+  .tag { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #eaf7f0; color: #1a7f4b; }
+  .tag.w { background: #fff4e5; color: #92400e; }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><i></i>Fieldnote</div>
+  <nav><a class="on" href="#">Overview</a><a href="#">Projects</a><a href="#">Reports</a><a href="#">Team</a><a href="#">Settings</a></nav>
+</aside>
+<main>
+  <header><h1>Overview</h1><span class="pill">Last 30 days</span></header>
+  <section class="cards">
+    <div class="card"><small>Active projects</small><b>48</b><span class="up">+12%</span></div>
+    <div class="card"><small>Tasks done</small><b>1,284</b><span class="up">+8%</span></div>
+    <div class="card"><small>On-time rate</small><b>94%</b><span class="up">+3 pts</span></div>
+    <div class="card"><small>Hours logged</small><b>3,920</b><span class="up">+5%</span></div>
+  </section>
+  <section class="row">
+    <div class="card"><small>Tasks completed per week</small>
+      <div class="chart"><span style="height:42%"></span><span style="height:55%"></span><span style="height:48%"></span><span style="height:63%"></span><span style="height:58%"></span><span style="height:72%"></span><span style="height:66%"></span><span style="height:80%"></span><span style="height:74%"></span><span style="height:88%"></span><span style="height:83%"></span><span style="height:95%"></span></div>
+    </div>
+    <div class="card"><small>Recent projects</small>
+      <div class="list">
+        <div>Website refresh <span class="tag">On track</span></div>
+        <div>Mobile onboarding <span class="tag">On track</span></div>
+        <div>Billing migration <span class="tag w">At risk</span></div>
+        <div>Help centre <span class="tag">On track</span></div>
+        <div>Q4 report <span class="tag">On track</span></div>
+        <div>Partner portal <span class="tag w">At risk</span></div>
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -38,3 +38,9 @@ Right-click the icon → **Options**:
 - `test/crop-test.html` checks the crop and record pipeline, `test/audio-mix-test.html` checks that two sound sources both end up in the file, and `test/overlay-test.html` runs the overlay with stubbed extension APIs. Open either one from disk in Chrome.
 
 Needs Chrome 116 or newer. Pages Chrome keeps off-limits to extensions (`chrome://`, the Web Store) can't be recorded.
+
+## Publishing
+
+- `build.ps1` packages the runtime files into `dist/region-recorder-<version>.zip` for the Chrome Web Store (bump `version` in `manifest.json` first).
+- `store/LISTING.md` has the paste-ready store text, permission justifications and privacy answers. `PRIVACY.md` is the privacy policy.
+- `store/make-icons.py` and `store/make-shots.py` regenerate the icons, screenshots and promo tile.
