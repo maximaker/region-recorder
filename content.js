@@ -24,7 +24,7 @@
   const root = host.attachShadow({ mode: 'closed' });
   root.innerHTML = `
     <style>
-      :host { --accent: #ef4444; --accent-hover: #dc2626; --glass: rgba(22,22,26,.82);
+      :host { --accent: #dc2626; --accent-hover: #b91c1c; --glass: rgba(22,22,26,.82);
               --line: rgba(255,255,255,.09); --text: #fafafa; --muted: rgba(250,250,250,.55); }
       * { box-sizing: border-box; margin: 0; font: 500 13px/1 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
           letter-spacing: -0.005em; -webkit-font-smoothing: antialiased; }
@@ -78,7 +78,9 @@
       .toggle .slash { display: none; }
       .toggle[aria-pressed=false] { color: var(--muted); }
       .toggle[aria-pressed=false] .slash { display: inline; }
-      .toggle[aria-pressed=false] .arrow { opacity: .55; }
+      .toggle[aria-pressed=false] .ico { opacity: .55; }
+      .toggle.pending { color: #fbbf24; animation: pulse 1.2s ease-in-out infinite; }
+      .toggle.pending .slash { display: none; }
 
       .dd { position: relative; }
       .menu { position: absolute; left: 0; min-width: 168px; padding: 4px; display: none; flex-direction: column; gap: 1px; }
@@ -140,8 +142,23 @@
   // Whether the cursor ring and click ripples are drawn into the video.
   // Same setting as the checkbox in Options; the toolbar toggle saves to it.
   let showClicks = true;
-  chrome.storage?.sync.get({ showClicks: true })
-    .then((s) => { showClicks = s.showClicks; syncCursorUI(); })
+  // Sound: the tab's own audio and/or the microphone, both remembered.
+  let tabAudio = true;
+  let mic = false;
+  let micPending = false;
+  chrome.storage?.sync.get({ showClicks: true, tabAudio: true, mic: false })
+    .then(async (s) => {
+      showClicks = s.showClicks;
+      tabAudio = s.tabAudio;
+      syncCursorUI();
+      syncSoundUI();
+      if (s.mic) {
+        // Only show the mic as on if Chrome still allows it.
+        const r = await chrome.runtime.sendMessage({ type: 'mic-permission', prompt: false }).catch(() => null);
+        mic = r?.state === 'granted';
+        syncSoundUI();
+      }
+    })
     .catch(() => {});
 
   // Small outline that previews each shape in the menu.
@@ -208,7 +225,7 @@
   const cursorBtn = el('toggle', 'button');
   cursorBtn.type = 'button';
   cursorBtn.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">
-      <path class="arrow" d="M4 2.5v10l2.6-2.4 1.8 3.9 1.7-.8-1.8-3.8h3.5z" fill="currentColor"/>
+      <path class="ico" d="M4 2.5v10l2.6-2.4 1.8 3.9 1.7-.8-1.8-3.8h3.5z" fill="currentColor"/>
       <path class="slash" d="M2.5 2.5l11 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     </svg>`;
   cursorBtn.addEventListener('click', () => {
@@ -217,7 +234,51 @@
     chrome.storage?.sync.set({ showClicks }).catch(() => {});
   });
 
-  bar.append(dd, cursorBtn, el('sep'), cancelBtn, recBtn);
+  const SLASH = '<path class="slash" d="M2.5 2.5l11 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
+  const soundBtn = el('toggle', 'button');
+  soundBtn.type = 'button';
+  soundBtn.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true"><g class="ico">
+      <path d="M2.5 6h2.4L8.5 3v10L4.9 10H2.5z" fill="currentColor"/>
+      <path d="M10.8 5.6a3.4 3.4 0 0 1 0 4.8M12.6 3.9a5.8 5.8 0 0 1 0 8.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </g>${SLASH}</svg>`;
+  soundBtn.addEventListener('click', () => {
+    tabAudio = !tabAudio;
+    syncSoundUI();
+    chrome.storage?.sync.set({ tabAudio }).catch(() => {});
+  });
+
+  const micBtn = el('toggle', 'button');
+  micBtn.type = 'button';
+  micBtn.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true"><g class="ico">
+      <path d="M6 3a2 2 0 0 1 4 0v4a2 2 0 0 1-4 0z" fill="currentColor"/>
+      <path d="M4 7a4 4 0 0 0 8 0M8 11v2.5M5.5 13.5h5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </g>${SLASH}</svg>`;
+  micBtn.addEventListener('click', async () => {
+    if (micPending) return;
+    if (mic) {
+      mic = false;
+      syncSoundUI();
+      chrome.storage?.sync.set({ mic }).catch(() => {});
+      return;
+    }
+    // Turning it on: ask Chrome for permission if it hasn't been given yet.
+    micPending = true;
+    syncSoundUI();
+    const r = await chrome.runtime.sendMessage({ type: 'mic-permission', prompt: true }).catch(() => null);
+    if (r?.state === 'asking') return; // answer arrives as an 'rr-mic' message
+    micAnswer(r?.state === 'granted' ? 'granted' : 'denied');
+  });
+
+  function micAnswer(state) {
+    micPending = false;
+    mic = state === 'granted';
+    micNote = state === 'denied' ? 'blocked' : '';
+    syncSoundUI();
+    if (mic) chrome.storage?.sync.set({ mic: true }).catch(() => {});
+  }
+  let micNote = '';
+
+  bar.append(dd, cursorBtn, soundBtn, micBtn, el('sep'), cancelBtn, recBtn);
   cancelBtn.addEventListener('click', cancel);
   recBtn.addEventListener('click', () => rect && record(rect));
   bar.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -230,6 +291,22 @@
     const label = showClicks ? 'Cursor and clicks: shown in the video' : 'Cursor and clicks: hidden';
     cursorBtn.title = label;
     cursorBtn.setAttribute('aria-label', label);
+  }
+
+  function syncSoundUI() {
+    soundBtn.setAttribute('aria-pressed', String(tabAudio));
+    const s = tabAudio ? "Tab sound: recorded (what this page plays)" : 'Tab sound: off';
+    soundBtn.title = s;
+    soundBtn.setAttribute('aria-label', s);
+
+    micBtn.classList.toggle('pending', micPending);
+    micBtn.setAttribute('aria-pressed', String(mic));
+    const m = micPending ? 'Microphone: waiting for your permission'
+      : mic ? 'Microphone: recording your voice'
+      : micNote === 'blocked' ? 'Microphone: blocked by Chrome. Click to try again'
+      : 'Microphone: off';
+    micBtn.title = m;
+    micBtn.setAttribute('aria-label', m);
   }
 
   function openMenu() {
@@ -463,7 +540,7 @@
 
     // Let the dimmed overlay leave the screen before recording starts.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      send({ type: 'region-selected', rect: r, viewport: viewport() });
+      send({ type: 'region-selected', rect: r, viewport: viewport(), tabAudio, mic: mic && !micPending });
     }));
   }
 
@@ -500,11 +577,13 @@
 
   function onMessage(msg) {
     if (msg.type === 'rr-cleanup') destroy();
+    if (msg.type === 'rr-mic' && micPending) micAnswer(msg.state);
   }
   chrome.runtime.onMessage.addListener(onMessage);
 
   window.__regionRecorder = { destroy };
   syncShapeUI();
   syncCursorUI();
+  syncSoundUI();
   render();
 })();

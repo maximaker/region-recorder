@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microphone · Region Recorder</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #18181b; --muted: #71717a; --line: #e4e4e7; --accent: #dc2626; --ok: #16a34a; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #18181b; --fg: #fafafa; --muted: #a1a1aa; --line: #3f3f46; --ok: #4ade80; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg);
+         font: 15px/1.5 ui-sans-serif, system-ui, "Segoe UI", sans-serif; }
+  main { width: 100%; max-width: 360px; padding: 28px 24px; text-align: center; }
+  .icon { width: 48px; height: 48px; margin: 0 auto 16px; border-radius: 14px; display: grid; place-items: center;
+          background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+  .icon.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+  p { margin: 0 0 20px; color: var(--muted); }
+  button { height: 38px; padding: 0 16px; border-radius: 10px; font: inherit; font-weight: 600; cursor: pointer;
+           border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+  button.ghost { background: transparent; color: var(--fg); border-color: var(--line); font-weight: 500; }
+  .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="icon" id="icon" aria-hidden="true">
+    <svg width="22" height="22" viewBox="0 0 16 16"><path d="M6 3a2 2 0 0 1 4 0v4a2 2 0 0 1-4 0z" fill="currentColor"/><path d="M4 7a4 4 0 0 0 8 0M8 11v2.5M5.5 13.5h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </div>
+  <h1 id="title">Allow the microphone</h1>
+  <p id="text">Chrome asks once. After that, Region Recorder can record your voice along with the page.</p>
+  <div class="row">
+    <button id="allow" type="button">Allow microphone</button>
+    <button id="settings" type="button" class="ghost" hidden>Open microphone settings</button>
+    <button id="close" type="button" class="ghost">Not now</button>
+  </div>
+</main>
+<script src="mic.js"></script>
+</body>
+</html>

@@ -4,6 +4,7 @@
 const MAX_SIDE = 4096;
 
 let stream = null;
+let micStream = null;
 let audioCtx = null;
 let recorder = null;
 let chunks = [];
@@ -19,6 +20,8 @@ function cleanupMedia() {
   ticker = null;
   stream?.getTracks().forEach((t) => t.stop());
   stream = null;
+  micStream?.getTracks().forEach((t) => t.stop());
+  micStream = null;
   audioCtx?.close().catch(() => {});
   audioCtx = null;
   recorder = null;
@@ -27,7 +30,9 @@ function cleanupMedia() {
   outSize = null;
 }
 
-async function prepare({ streamId, viewport: vp, audio }) {
+// The tab's sound is always captured here; whether it goes into the video is
+// decided at start(), after the user picks in the toolbar.
+async function prepare({ streamId, viewport: vp }) {
   cleanupMedia();
   viewport = vp;
   const fullW = vp.w * vp.dpr;
@@ -38,7 +43,7 @@ async function prepare({ streamId, viewport: vp, audio }) {
   const source = { chromeMediaSource: 'tab', chromeMediaSourceId: streamId };
 
   stream = await navigator.mediaDevices.getUserMedia({
-    audio: audio ? { mandatory: source } : false,
+    audio: { mandatory: source },
     video: { mandatory: { ...source, minWidth: W, maxWidth: W, minHeight: H, maxHeight: H, maxFrameRate: 30 } },
   });
 
@@ -76,10 +81,49 @@ function pickMime(format) {
   return order.find((m) => MediaRecorder.isTypeSupported(m)) || '';
 }
 
-function start({ rect: r, viewport: vp, format }) {
+// MediaRecorder only records the first audio track, so tab sound and mic are
+// mixed into one. The mic never goes to the speakers (no echo).
+async function buildAudio(tabAudio, mic) {
+  const [tabTrack] = stream.getAudioTracks();
+  const useTab = tabAudio && tabTrack;
+  if (mic) {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false,
+      });
+    } catch (e) {
+      if (e?.name === 'NotAllowedError') throw new Error('the microphone is blocked. Turn it on again in the toolbar to allow it.');
+      if (e?.name === 'NotFoundError') throw new Error('no microphone was found.');
+      throw e;
+    }
+  }
+  const [micTrack] = micStream?.getAudioTracks() || [];
+  if (useTab && micTrack) {
+    audioCtx ??= new AudioContext();
+    const mix = audioCtx.createMediaStreamDestination();
+    audioCtx.createMediaStreamSource(new MediaStream([tabTrack])).connect(mix);
+    audioCtx.createMediaStreamSource(micStream).connect(mix);
+    return mix.stream.getAudioTracks();
+  }
+  if (useTab) return [tabTrack];
+  if (micTrack) return [micTrack];
+  return [];
+}
+
+async function micStatus() {
+  try {
+    return (await navigator.permissions.query({ name: 'microphone' })).state;
+  } catch {
+    return 'prompt';
+  }
+}
+
+async function start({ rect: r, viewport: vp, format, tabAudio = true, mic = false }) {
   if (!stream) throw new Error('the tab capture is not ready');
   rect = r;
   viewport = vp;
+  const audioTracks = await buildAudio(tabAudio, mic); // before anything starts, so a mic error leaves nothing running
 
   const [videoTrack] = stream.getVideoTracks();
   const processor = new MediaStreamTrackProcessor({ track: videoTrack });
@@ -105,7 +149,7 @@ function start({ rect: r, viewport: vp, format }) {
     .catch(() => {}); // ends when the source track stops
 
   const mimeType = pickMime(format);
-  recorder = new MediaRecorder(new MediaStream([generator, ...stream.getAudioTracks()]), {
+  recorder = new MediaRecorder(new MediaStream([generator, ...audioTracks]), {
     mimeType,
     videoBitsPerSecond: 8_000_000,
   });
@@ -140,7 +184,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     try {
       switch (msg.type) {
         case 'prepare': await prepare(msg); return sendResponse({ ok: true });
-        case 'start': start(msg); return sendResponse({ ok: true });
+        case 'start': await start(msg); return sendResponse({ ok: true });
+        case 'mic-status': return sendResponse({ ok: true, state: await micStatus() });
         case 'stop': return sendResponse({ ok: true, ...(await stop()) });
         case 'viewport': viewport = msg.viewport; return sendResponse({ ok: true });
         case 'revoke': URL.revokeObjectURL(msg.url); return sendResponse({ ok: true });

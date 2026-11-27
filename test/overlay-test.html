@@ -12,8 +12,8 @@
   window.__sent = [];
   window.chrome = {
     runtime: {
-      sendMessage: (m) => { window.__sent.push(m); return Promise.resolve(); },
-      onMessage: { addListener() {}, removeListener() {} },
+      sendMessage: (m) => { window.__sent.push(m); return Promise.resolve(m.type === 'mic-permission' ? { state: window.__micState || 'asking' } : undefined); },
+      onMessage: { addListener(fn) { window.__deliver = fn; }, removeListener() {} },
     },
     storage: { sync: { get: (d) => Promise.resolve(d), set: (v) => { window.__saved = v; return Promise.resolve(); } } },
   };

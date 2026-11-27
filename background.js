@@ -1,7 +1,7 @@
 // Service worker: coordinates the toolbar button, the page overlay and the
 // offscreen recorder, and saves the finished video through chrome.downloads.
 
-const DEFAULTS = { folder: 'Region Recordings', format: 'auto', audio: true };
+const DEFAULTS = { folder: 'Region Recordings', format: 'auto' };
 const REC_COLOR = '#d93025';
 
 // ---------- state (kept in session storage: the worker may be restarted) ----------
@@ -91,8 +91,7 @@ async function begin(tab) {
   // recorder only starts once an area is chosen.
   const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id });
   await ensureOffscreen();
-  const settings = await chrome.storage.sync.get(DEFAULTS);
-  const res = await toOffscreen({ type: 'prepare', streamId, viewport, audio: settings.audio });
+  const res = await toOffscreen({ type: 'prepare', streamId, viewport });
   if (!res?.ok) throw new Error(res?.error || 'could not start the tab capture');
 
   if ((await getState()).status !== 'preparing') return; // cancelled meanwhile
@@ -101,13 +100,15 @@ async function begin(tab) {
   await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
 }
 
-async function startRecording(rect, viewport) {
+async function startRecording(rect, viewport, tabAudio, mic) {
   const st = await getState();
   const settings = await chrome.storage.sync.get(DEFAULTS);
-  const res = await toOffscreen({ type: 'start', rect, viewport, format: settings.format });
+  const res = await toOffscreen({ type: 'start', rect, viewport, format: settings.format, tabAudio, mic });
   if (!res?.ok) {
     await cancel(st.tabId);
-    return flagError(res?.error || 'could not start recording');
+    const why = res?.error || 'could not start recording';
+    notify('rr-start-failed', 'Recording did not start', why.charAt(0).toUpperCase() + why.slice(1), []);
+    return flagError(why);
   }
   await setState({ ...st, status: 'recording' });
   await badge('REC', 'Recording. Click to stop and save (Alt+Shift+R).');
@@ -170,14 +171,23 @@ function buildFilename(folder, title, mime) {
 
 // ---------- messages ----------
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.target === 'offscreen') return;
+  if (msg.type === 'mic-permission') {
+    micPermission(msg.prompt, sender.tab).then(sendResponse, () => sendResponse({ state: 'prompt' }));
+    return true;
+  }
   (async () => {
     const st = await getState();
     const fromTab = sender.tab?.id;
     switch (msg.type) {
       case 'region-selected':
-        if (st.status === 'selecting' && fromTab === st.tabId) await startRecording(msg.rect, msg.viewport);
+        if (st.status === 'selecting' && fromTab === st.tabId) {
+          await startRecording(msg.rect, msg.viewport, msg.tabAudio !== false, !!msg.mic);
+        }
+        break;
+      case 'mic-answer':
+        await micAnswered(msg.state);
         break;
       case 'selection-cancelled':
         if (st.status === 'selecting' && fromTab === st.tabId) await cancel(st.tabId);
@@ -230,6 +240,43 @@ async function downloadFinished(id, state) {
   const st = await getState();
   if (['idle', 'saving'].includes(st.status) && !Object.keys(pending).length) await closeOffscreen();
 }
+
+// ---------- microphone permission ----------
+// The offscreen document can't show Chrome's permission prompt, so the first
+// time the mic is turned on, a small extension window asks for it. The
+// permission then belongs to the extension and the recorder can use it.
+
+async function micPermission(prompt, tab) {
+  let state = 'prompt';
+  if (await hasOffscreen()) {
+    const r = await toOffscreen({ type: 'mic-status' }).catch(() => null);
+    state = r?.state || 'prompt';
+  }
+  if (state === 'granted' || !prompt || !tab) return { state };
+
+  const { micAsk } = await chrome.storage.session.get('micAsk');
+  if (micAsk) await chrome.windows.remove(micAsk.windowId).catch(() => {});
+  const win = await chrome.windows.create({ url: 'mic.html', type: 'popup', width: 440, height: 380, focused: true });
+  await chrome.storage.session.set({ micAsk: { windowId: win.id, tabId: tab.id, tabWindowId: tab.windowId } });
+  return { state: 'asking' };
+}
+
+async function micAnswered(state) {
+  const { micAsk } = await chrome.storage.session.get('micAsk');
+  if (!micAsk) return;
+  await chrome.storage.session.remove('micAsk');
+  chrome.tabs.sendMessage(micAsk.tabId, { type: 'rr-mic', state }).catch(() => {});
+  if (state === 'granted') {
+    setTimeout(() => chrome.windows.remove(micAsk.windowId).catch(() => {}), 900);
+    await chrome.windows.update(micAsk.tabWindowId, { focused: true }).catch(() => {});
+  }
+}
+
+// Closing the window without answering counts as "not now".
+chrome.windows.onRemoved.addListener(async (windowId) => {
+  const { micAsk } = await chrome.storage.session.get('micAsk');
+  if (micAsk?.windowId === windowId) await micAnswered('dismissed');
+});
 
 // ---------- "saved" notification ----------
 

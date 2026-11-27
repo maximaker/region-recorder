@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Audio mix test</title>
+<body style="font:14px system-ui">
+<pre id="out">running…</pre>
+<script>
+// Mixes two tones (stand-ins for tab sound and mic) the same way offscreen.js
+// does, records them with a video track, then decodes the file and checks
+// that both frequencies made it in.
+(async () => {
+  const out = document.getElementById('out');
+  try {
+    const ctx = new AudioContext();
+    const tone = (hz) => { const o = ctx.createOscillator(); o.frequency.value = hz; const d = ctx.createMediaStreamDestination(); o.connect(d); o.start(); return d.stream; };
+    const tab = tone(440), mic = tone(1000);
+    const mix = ctx.createMediaStreamDestination();
+    ctx.createMediaStreamSource(tab).connect(mix);
+    ctx.createMediaStreamSource(mic).connect(mix);
+
+    const c = Object.assign(document.createElement('canvas'), { width: 320, height: 180 });
+    const g = c.getContext('2d'); let t = 0;
+    const id = setInterval(() => { g.fillStyle = `hsl(${t++ * 7},70%,50%)`; g.fillRect(0, 0, 320, 180); }, 33);
+    const mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m));
+    const rec = new MediaRecorder(new MediaStream([c.captureStream(30).getVideoTracks()[0], ...mix.stream.getAudioTracks()]), { mimeType: mime });
+    const chunks = []; rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    rec.start(500);
+    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => { rec.onstop = r; rec.stop(); });
+    clearInterval(id);
+
+    const blob = new Blob(chunks, { type: rec.mimeType.split(';')[0] });
+    const buf = await new AudioContext().decodeAudioData(await blob.arrayBuffer());
+    const data = buf.getChannelData(0);
+    const sr = buf.sampleRate;
+    const mid = Math.floor(data.length / 2), N = 4096;
+    const power = (hz) => { let re = 0, im = 0; for (let i = 0; i < N; i++) { const a = 2 * Math.PI * hz * i / sr; re += data[mid + i] * Math.cos(a); im -= data[mid + i] * Math.sin(a); } return Math.hypot(re, im) / N; };
+    const result = { mime: rec.mimeType, seconds: +buf.duration.toFixed(2), p440: +power(440).toFixed(4), p1000: +power(1000).toFixed(4), p700_control: +power(700).toFixed(4) };
+    out.textContent = JSON.stringify(result);
+  } catch (e) { out.textContent = 'ERROR ' + e; }
+})();
+</script>
