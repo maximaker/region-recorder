@@ -6,7 +6,7 @@ A Chrome extension that records a part of the page you pick and saves the video 
 
 1. Click the toolbar icon, or press **Alt+Shift+R**.
 2. Drag over the area you want. **Enter** records the whole view right away, **Esc** cancels.
-3. Fine-tune it: drag inside to move, drag the handles to resize, or nudge with the arrow keys (Shift for 10 px). Pick a shape (**Free, 16:9, 1:1, 9:16**) to lock the proportions. Drag outside the area to draw a new one.
+3. Fine-tune it: drag inside to move, drag the handles to resize, or nudge with the arrow keys (Shift for 10 px). The shape menu locks the proportions (**16:9, 4:3, 1:1, 9:16**) or switches to **Full view**, the whole visible page. Drag outside the area to draw a new one.
 4. Press **Record** (or Enter). A red frame and a **Stop** button sit just outside the area, so they don't end up in the video. The icon badge shows the time.
 5. A ring follows your cursor inside the area and each click leaves a ripple, so viewers can see what you did. Chrome's tab recording leaves out the real pointer. You can turn this off in Options.
 6. Stop with the button, the icon, or **Alt+Shift+R**. The video saves straight to `Downloads/Region Recordings/` with no dialog, named after the page and the time. A notification confirms it, with **Open** and **Show in folder** buttons.
