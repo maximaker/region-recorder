@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Region Recorder · Store submission</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f6f7f9; --card: #fff; --fg: #18181b; --muted: #5f6573; --line: #e4e4e7; --accent: #dc2626; --ok: #15803d; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #131316; --card: #1c1c21; --fg: #fafafa; --muted: #a1a1aa; --line: #2e2e35; --ok: #4ade80; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 28px 0 10px; }
+  .field { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .head b { font-weight: 600; }
+  .head small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; color: var(--fg); max-height: 220px; overflow: auto; }
+  .note { color: var(--muted); margin: 0; }
+  button { flex: none; height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.done { color: var(--ok); border-color: var(--ok); }
+  code { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Region Recorder · Store submission</h1>
+  <p class="lead">Go through the dashboard top to bottom and press Copy next to each field. For uploads, copy the path and paste it into the file name box of the upload window.</p>
+
+  <h2>1 · Package (New item)</h2>
+  <div class="field"><div class="head"><b>Zip file <small>paste into the upload window</small></b><button data-copy>Copy</button></div><pre>C:\Users\Max\CC\region-recorder\dist\region-recorder-1.6.0.zip</pre></div>
+
+  <h2>2 · Store listing</h2>
+  <div class="field"><div class="head"><b>Description</b><button data-copy>Copy</button></div><pre>Record just the part of a page you need. No editing afterwards, no save dialog.
+
+HOW IT WORKS
+• Click the toolbar icon or press Alt+Shift+R.
+• Drag over the area you want. Move it, resize it, or nudge it with the arrow keys.
+• Pick a shape: free, 16:9, 4:3, 1:1, 9:16, or the full view.
+• Press Record. A thin red frame shows what's being recorded, and a small Stop button sits just outside it, so neither ends up in the video.
+• Stop with the button, the icon or the shortcut. The video saves straight to Downloads/Region Recordings, and a notification lets you open it or show it in its folder.
+
+SOUND
+• Record the page's own sound, your microphone, both, or neither.
+• Live level bars next to the timer show that sound is coming in.
+
+SHOW WHAT YOU DID
+• An optional cursor ring and click ripples are drawn into the video, so viewers can follow along. Chrome's tab recording leaves out the real pointer.
+
+ALSO
+• MP4 by default (WebM if you prefer), sharp at your screen's resolution.
+• Choose your own save folder inside Downloads.
+• Closing the tab mid-recording saves what you have so far.
+
+PRIVATE BY DESIGN
+No accounts, no servers, no analytics. Your videos never leave your computer.</pre></div>
+  <div class="field"><div class="head"><b>Category</b></div><p class="note">Productivity → Tools. Language: English.</p></div>
+  <div class="field"><div class="head"><b>Store icon <small>128×128</small></b><button data-copy>Copy</button></div><pre>C:\Users\Max\CC\region-recorder\icons\128.png</pre></div>
+  <div class="field"><div class="head"><b>Screenshot 1</b><button data-copy>Copy</button></div><pre>C:\Users\Max\CC\region-recorder\store\screenshot-1.png</pre></div>
+  <div class="field"><div class="head"><b>Screenshot 2</b><button data-copy>Copy</button></div><pre>C:\Users\Max\CC\region-recorder\store\screenshot-2.png</pre></div>
+  <div class="field"><div class="head"><b>Screenshot 3</b><button data-copy>Copy</button></div><pre>C:\Users\Max\CC\region-recorder\store\screenshot-3.png</pre></div>
+  <div class="field"><div class="head"><b>Small promo tile <small>440×280</small></b><button data-copy>Copy</button></div><pre>C:\Users\Max\CC\region-recorder\store\promo-tile-440x280.png</pre></div>
+  <p class="note">The name and summary come from the zip itself, so there's nothing to paste for them.</p>
+
+  <h2>3 · Privacy</h2>
+  <div class="field"><div class="head"><b>Single purpose</b><button data-copy>Copy</button></div><pre>Records a user-selected area of the current tab as a video, optionally with the tab's sound and the user's microphone, and saves it to the user's downloads folder.</pre></div>
+  <div class="field"><div class="head"><b>tabCapture</b><button data-copy>Copy</button></div><pre>Captures the current tab's video (and sound, if the user turns it on) after the user clicks the extension icon or presses its shortcut. The capture is cropped to the area the user drew.</pre></div>
+  <div class="field"><div class="head"><b>activeTab</b><button data-copy>Copy</button></div><pre>Gives the extension access to the current tab only when the user invokes it, to show the area picker there and start the tab capture.</pre></div>
+  <div class="field"><div class="head"><b>scripting</b><button data-copy>Copy</button></div><pre>Injects the area picker and the recording controls (frame, Stop button) into the tab the user invoked the extension on.</pre></div>
+  <div class="field"><div class="head"><b>offscreen</b><button data-copy>Copy</button></div><pre>Runs the cropping and MediaRecorder in an offscreen document (reason USER_MEDIA), because the service worker can't handle media streams.</pre></div>
+  <div class="field"><div class="head"><b>downloads</b><button data-copy>Copy</button></div><pre>Saves the finished video to the user's downloads folder without a save dialog.</pre></div>
+  <div class="field"><div class="head"><b>downloads.open</b><button data-copy>Copy</button></div><pre>The "Open" button on the "Recording saved" notification opens the video the extension just saved.</pre></div>
+  <div class="field"><div class="head"><b>notifications</b><button data-copy>Copy</button></div><pre>Confirms that a recording was saved (with Open / Show in folder buttons), or explains why a recording couldn't start.</pre></div>
+  <div class="field"><div class="head"><b>storage</b><button data-copy>Copy</button></div><pre>Saves the user's settings (save folder, format, sound choices, cursor highlight).</pre></div>
+  <div class="field"><div class="head"><b>Remote code</b></div><p class="note">Choose "No, I am not using remote code".</p></div>
+  <div class="field"><div class="head"><b>Data usage</b></div><p class="note">Tick none of the data types. Tick all three certifications at the bottom.</p></div>
+  <div class="field"><div class="head"><b>Privacy policy URL</b><button data-copy>Copy</button></div><pre>https://github.com/maximaker/region-recorder/blob/main/PRIVACY.md</pre></div>
+
+  <h2>4 · Distribution, then submit</h2>
+  <div class="field"><p class="note">Free · Public · All regions. Then press <b>Submit for review</b> at the top right.</p></div>
+</main>
+<script src="submit-helper.js"></script>
+</body>
+</html>

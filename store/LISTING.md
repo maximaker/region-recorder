@@ -4,7 +4,7 @@ Paste-ready text for the developer dashboard. Images are in this folder.
 
 ## Package
 
-Upload `dist/region-recorder-<version>.zip` (build it with `build.ps1`).
+Upload `dist/region-recorder-<version>.zip` (build it with `build.ps1`). The store takes the name and summary from manifest.json, so keep its description in step with the summary below. `store/submit-helper.html` has a Copy button for every field.
 
 ## Store listing tab
 
