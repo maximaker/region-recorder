@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Overlay test</title>
+<style>
+  body { margin: 0; font: 16px system-ui; background: linear-gradient(135deg, #e8f0fe, #fce8e6); min-height: 100vh; }
+  .card { margin: 80px auto; width: 420px; padding: 24px; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+  button.demo { padding: 10px 16px; }
+</style>
+<div class="card"><h2>Demo card</h2><p>Some content to record.</p><button class="demo">A page button</button></div>
+<script>
+  // Stand-in for the extension APIs so content.js runs as a normal page script.
+  window.__sent = [];
+  window.chrome = {
+    runtime: {
+      sendMessage: (m) => { window.__sent.push(m); return Promise.resolve(); },
+      onMessage: { addListener() {}, removeListener() {} },
+    },
+    storage: { sync: { get: (d) => Promise.resolve(d) } },
+  };
+</script>
+<script src="../content.js"></script>

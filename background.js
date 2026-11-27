@@ -133,6 +133,9 @@ async function stopRecording() {
     pending[id] = res.url;
     await setPending(pending);
     await badge('');
+    // Small files can finish before the id was stored; catch that case here.
+    const [item] = await chrome.downloads.search({ id });
+    if (item && item.state !== 'in_progress') await downloadFinished(id, item.state);
   } catch (e) {
     await flagError(friendly(e));
     await closeOffscreen();
@@ -200,18 +203,71 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 });
 
 // Free the video memory once Chrome has written the file.
-chrome.downloads.onChanged.addListener(async (delta) => {
-  const done = delta.state && ['complete', 'interrupted'].includes(delta.state.current);
-  if (!done) return;
+chrome.downloads.onChanged.addListener((delta) => {
+  const state = delta.state?.current;
+  if (state === 'complete' || state === 'interrupted') downloadFinished(delta.id, state);
+});
+
+const handled = new Set(); // the event and the check in stopRecording can both fire
+
+async function downloadFinished(id, state) {
+  if (handled.has(id)) return;
+  handled.add(id);
   const pending = await getPending();
-  const url = pending[delta.id];
-  if (!url) return;
-  delete pending[delta.id];
+  const url = pending[id];
+  if (!url) return; // not ours
+  delete pending[id];
   await setPending(pending);
-  if (delta.state.current === 'interrupted') await flagError('saving the video failed — check the Downloads list.');
+  if (state === 'interrupted') {
+    await flagError('saving the video failed — check the Downloads list.');
+    notify(`rr-fail-${id}`, 'Recording not saved', 'Chrome could not write the file. Check the Downloads list.', []);
+  } else {
+    const [item] = await chrome.downloads.search({ id });
+    const name = item?.filename?.split(/[\\/]/).pop() || 'Your video';
+    notify(`rr-${id}`, 'Recording saved', name, [{ title: 'Open' }, { title: 'Show in folder' }]);
+  }
   if (await hasOffscreen()) await toOffscreen({ type: 'revoke', url }).catch(() => {});
   const st = await getState();
-  if (st.status === 'idle' && !Object.keys(pending).length) await closeOffscreen();
+  if (['idle', 'saving'].includes(st.status) && !Object.keys(pending).length) await closeOffscreen();
+}
+
+// ---------- "saved" notification ----------
+
+function notify(id, title, message, buttons) {
+  chrome.notifications.create(id, {
+    type: 'basic', iconUrl: 'icons/128.png', title, message, buttons, priority: 1,
+  }).catch((e) => console.warn('[Region Recorder] notification failed', e));
+}
+
+const downloadIdOf = (notifId) => {
+  const m = /^rr-(\d+)$/.exec(notifId);
+  return m ? Number(m[1]) : null;
+};
+
+async function showFile(id) {
+  chrome.downloads.show(id);
+}
+
+async function openFile(id) {
+  try {
+    await chrome.downloads.open(id);
+  } catch {
+    chrome.downloads.show(id); // file moved/deleted, or Chrome refused: fall back to the folder
+  }
+}
+
+chrome.notifications.onButtonClicked.addListener(async (notifId, index) => {
+  const id = downloadIdOf(notifId);
+  if (id == null) return;
+  if (index === 0) await openFile(id);
+  else await showFile(id);
+  chrome.notifications.clear(notifId);
+});
+
+chrome.notifications.onClicked.addListener(async (notifId) => {
+  const id = downloadIdOf(notifId);
+  if (id != null) await showFile(id);
+  chrome.notifications.clear(notifId);
 });
 
 // Closing the tab saves what was recorded; navigating away while choosing cancels.
